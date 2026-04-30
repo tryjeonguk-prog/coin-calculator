@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>코인 평단가 계산기</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif; background: #f5f6f8; min-height: 100vh; display: flex; align-items: flex-start; justify-content: center; padding: 24px 16px; }
+.wrap { width: 100%; max-width: 560px; }
+.title-box { margin-bottom: 20px; }
+.title-box h1 { font-size: 20px; font-weight: 700; color: #1a1a2e; margin-bottom: 4px; }
+.title-box p { font-size: 13px; color: #888; }
+.metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 18px; }
+.metric { background: #fff; border-radius: 12px; padding: 14px 14px 12px; border: 1px solid #eee; }
+.metric-label { font-size: 10px; color: #aaa; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 6px; }
+.metric-value { font-size: 17px; font-weight: 700; color: #1a1a2e; line-height: 1.2; word-break: break-all; }
+.metric-value.profit { color: #00b96b; }
+.metric-value.loss { color: #e23737; }
+.metric-sub { font-size: 11px; color: #bbb; margin-top: 4px; }
+.metric-sub.profit { color: #00b96b; }
+.metric-sub.loss { color: #e23737; }
+.table-box { background: #fff; border-radius: 14px; border: 1px solid #eee; overflow: hidden; margin-bottom: 12px; }
+.table-head { display: grid; grid-template-columns: 1fr 1fr 1fr 32px; background: #f9f9fb; border-bottom: 1px solid #eee; padding: 0 14px; }
+.th { font-size: 11px; color: #aaa; padding: 10px 0; letter-spacing: 0.03em; }
+.entry-row { display: grid; grid-template-columns: 1fr 1fr 1fr 32px; padding: 0 14px; border-bottom: 1px solid #f2f2f2; align-items: center; }
+.entry-row:last-child { border-bottom: none; }
+.entry-row input { background: transparent; border: none; outline: none; font-size: 14px; color: #1a1a2e; font-family: inherit; width: 100%; padding: 11px 0; border-bottom: 1.5px solid transparent; transition: border-color 0.15s; }
+.entry-row input:focus { border-bottom-color: #4f8ef7; }
+.entry-row input::placeholder { color: #d0d0d0; }
+.entry-row input[type=number]::-webkit-inner-spin-button,
+.entry-row input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
+.amount-cell { font-size: 13px; color: #bbb; padding: 11px 0; }
+.amount-cell.filled { font-weight: 600; color: #1a1a2e; }
+.del-btn { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border: none; background: transparent; cursor: pointer; border-radius: 7px; color: #ccc; font-size: 18px; line-height: 1; transition: background 0.12s, color 0.12s; flex-shrink: 0; }
+.del-btn:hover { background: #fff0f0; color: #e23737; }
+.add-btn { width: 100%; padding: 12px; border: none; background: transparent; border-top: 1px solid #f2f2f2; cursor: pointer; font-size: 13px; color: #aaa; font-family: inherit; display: flex; align-items: center; justify-content: center; gap: 6px; transition: background 0.12s, color 0.12s; }
+.add-btn:hover { background: #f7f9ff; color: #4f8ef7; }
+.current-box { background: #fff; border-radius: 14px; border: 1px solid #eee; padding: 16px; margin-bottom: 12px; }
+.current-label { font-size: 11px; color: #aaa; margin-bottom: 10px; letter-spacing: 0.03em; text-transform: uppercase; }
+.current-row { display: flex; align-items: center; gap: 10px; }
+.current-row label { font-size: 13px; color: #888; white-space: nowrap; }
+.current-row input { flex: 1; background: #f7f9ff; border: 1.5px solid #e0e8ff; border-radius: 9px; padding: 10px 14px; font-size: 15px; font-weight: 600; color: #1a1a2e; font-family: inherit; outline: none; transition: border-color 0.15s; }
+.current-row input:focus { border-color: #4f8ef7; }
+.current-row input[type=number]::-webkit-inner-spin-button,
+.current-row input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
+.breakdown { font-size: 12px; color: #aaa; margin-top: 12px; line-height: 1.8; padding-top: 12px; border-top: 1px solid #f2f2f2; }
+.breakdown b { color: #1a1a2e; font-weight: 600; }
+.breakdown .profit-text { color: #00b96b; font-weight: 600; }
+.breakdown .loss-text { color: #e23737; font-weight: 600; }
+.reset-btn { width: 100%; padding: 12px; border: 1.5px solid #eee; background: #fff; border-radius: 10px; cursor: pointer; font-size: 13px; color: #aaa; font-family: inherit; transition: background 0.12s, color 0.12s, border-color 0.12s; }
+.reset-btn:hover { background: #f7f9ff; color: #4f8ef7; border-color: #c5d8ff; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="title-box">
+    <h1>📊 코인 평단가 계산기</h1>
+    <p>매수 내역을 입력하고 현재가로 수익을 확인하세요</p>
+  </div>
+  <div class="metrics">
+    <div class="metric">
+      <div class="metric-label">평균 매수가</div>
+      <div class="metric-value" id="avg-price">—</div>
+      <div class="metric-sub" id="avg-sub">입력 대기</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">총 투자금액</div>
+      <div class="metric-value" id="total-invest">—</div>
+      <div class="metric-sub" id="invest-sub">수량: —</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">평가손익</div>
+      <div class="metric-value" id="pnl">—</div>
+      <div class="metric-sub" id="pnl-pct">현재가 미입력</div>
+    </div>
+  </div>
+  <div class="table-box">
+    <div class="table-head">
+      <span class="th">매수가 (원)</span>
+      <span class="th">수량</span>
+      <span class="th">금액 (원)</span>
+      <span class="th"></span>
+    </div>
+    <div id="entries-list"></div>
+    <button class="add-btn" id="add-btn">+ 매수 내역 추가</button>
+  </div>
+  <div class="current-box">
+    <div class="current-label">현재가 입력 (선택)</div>
+    <div class="current-row">
+      <label>현재가</label>
+      <input type="number" id="current-price" placeholder="현재 시장가 입력..." min="0">
+    </div>
+    <div class="breakdown" id="breakdown" style="display:none;"></div>
+  </div>
+  <button class="reset-btn" id="reset-btn">초기화</button>
+</div>
+
+<script>
+var entries = [
+  { price: '', qty: '' },
+  { price: '', qty: '' }
+];
+
+function fmt(n) {
+  if (isNaN(n) || n === null) return '—';
+  return Math.round(n).toLocaleString('ko-KR');
+}
+function fmtDec(n, d) {
+  if (isNaN(n) || n === null) return '—';
+  return n.toLocaleString('ko-KR', { minimumFractionDigits: d, maximumFractionDigits: d });
+}
+
+// 금액 셀 텍스트만 갱신 — 입력 DOM 건드리지 않음
+function updateAmountCell(row, idx) {
+  var p = parseFloat(entries[idx].price) || 0;
+  var q = parseFloat(entries[idx].qty)   || 0;
+  var cell = row.querySelector('.amount-cell');
+  if (p && q) {
+    cell.textContent = fmt(p * q);
+    cell.className = 'amount-cell filled';
+  } else {
+    cell.textContent = '—';
+    cell.className = 'amount-cell';
+  }
+}
+
+// 행 DOM 생성 (추가·초기화 시에만 호출)
+function createRow(idx) {
+  var row = document.createElement('div');
+  row.className = 'entry-row';
+
+  // 매수가 입력
+  var pInput = document.createElement('input');
+  pInput.type = 'number';
+  pInput.placeholder = '50000';
+  pInput.min = '0';
+  pInput.className = 'p-input';
+  // closure 대신 data 속성으로 인덱스 참조
+  pInput.setAttribute('data-idx', idx);
+  pInput.addEventListener('input', function() {
+    var i = parseInt(this.getAttribute('data-idx'));
+    entries[i].price = this.value;
+    updateAmountCell(this.closest('.entry-row'), i);
+    recalc();
+  });
+
+  // 수량 입력
+  var qInput = document.createElement('input');
+  qInput.type = 'number';
+  qInput.placeholder = '0.5';
+  qInput.min = '0';
+  qInput.step = 'any';
+  qInput.className = 'q-input';
+  qInput.setAttribute('data-idx', idx);
+  qInput.addEventListener('input', function() {
+    var i = parseInt(this.getAttribute('data-idx'));
+    entries[i].qty = this.value;
+    updateAmountCell(this.closest('.entry-row'), i);
+    recalc();
+  });
+
+  // 금액 표시
+  var amtCell = document.createElement('div');
+  amtCell.className = 'amount-cell';
+  amtCell.textContent = '—';
+
+  // 삭제 버튼
+  var delBtn = document.createElement('button');
+  delBtn.className = 'del-btn';
+  delBtn.title = '삭제';
+  delBtn.textContent = '×';
+  delBtn.setAttribute('data-idx', idx);
+  delBtn.addEventListener('click', function() {
+    var i = parseInt(this.getAttribute('data-idx'));
+    if (entries.length > 1) {
+      entries.splice(i, 1);
+      rebuildList();
+    }
+  });
+
+  row.appendChild(pInput);
+  row.appendChild(qInput);
+  row.appendChild(amtCell);
+  row.appendChild(delBtn);
+  return row;
+}
+
+// 리스트 전체 재구성 (삭제·추가·초기화 시에만)
+function rebuildList() {
+  var list = document.getElementById('entries-list');
+  list.innerHTML = '';
+  entries.forEach(function(e, i) {
+    var row = createRow(i);
+    row.querySelector('.p-input').value = e.price;
+    row.querySelector('.q-input').value = e.qty;
+    updateAmountCell(row, i);
+    list.appendChild(row);
+  });
+  recalc();
+}
+
+// 요약 카드 재계산
+function recalc() {
+  var valid = entries.filter(function(e) {
+    return parseFloat(e.price) > 0 && parseFloat(e.qty) > 0;
+  });
+
+  var avgEl     = document.getElementById('avg-price');
+  var avgSub    = document.getElementById('avg-sub');
+  var investEl  = document.getElementById('total-invest');
+  var investSub = document.getElementById('invest-sub');
+  var pnlEl     = document.getElementById('pnl');
+  var pnlPct    = document.getElementById('pnl-pct');
+  var breakdown = document.getElementById('breakdown');
+
+  if (valid.length === 0) {
+    avgEl.textContent = '—';          avgEl.className = 'metric-value';
+    avgSub.textContent = '입력 대기';  avgSub.className = 'metric-sub';
+    investEl.textContent = '—';
+    investSub.textContent = '수량: —';
+    pnlEl.textContent = '—';          pnlEl.className = 'metric-value';
+    pnlPct.textContent = '현재가 미입력'; pnlPct.className = 'metric-sub';
+    breakdown.style.display = 'none';
+    return;
+  }
+
+  var totalAmt = 0, totalQty = 0;
+  valid.forEach(function(e) {
+    totalAmt += parseFloat(e.price) * parseFloat(e.qty);
+    totalQty += parseFloat(e.qty);
+  });
+  var avgPrice = totalAmt / totalQty;
+
+  avgEl.textContent     = fmt(avgPrice) + '원';
+  avgSub.textContent    = valid.length + '건 매수';
+  avgSub.className      = 'metric-sub';
+  investEl.textContent  = fmt(totalAmt) + '원';
+  investSub.textContent = '수량: ' + parseFloat(totalQty.toFixed(8));
+
+  var cur = parseFloat(document.getElementById('current-price').value);
+  if (!cur || cur <= 0) {
+    pnlEl.textContent = '—';            pnlEl.className = 'metric-value';
+    pnlPct.textContent = '현재가 미입력'; pnlPct.className = 'metric-sub';
+    breakdown.style.display = 'none';
+    return;
+  }
+
+  var curVal   = cur * totalQty;
+  var pnl      = curVal - totalAmt;
+  var pnlP     = (pnl / totalAmt) * 100;
+  var isProfit = pnl >= 0;
+  var sign     = isProfit ? '+' : '';
+  var cls      = isProfit ? 'profit' : 'loss';
+  var txtCls   = isProfit ? 'profit-text' : 'loss-text';
+  var diffPct  = (cur - avgPrice) / avgPrice * 100;
+
+  pnlEl.textContent  = sign + fmt(pnl) + '원';
+  pnlEl.className    = 'metric-value ' + cls;
+  pnlPct.textContent = sign + fmtDec(pnlP, 2) + '%';
+  pnlPct.className   = 'metric-sub ' + cls;
+
+  breakdown.style.display = 'block';
+  breakdown.innerHTML =
+    '현재가 <b>' + fmt(cur) + '원</b> &nbsp;|&nbsp; 평가금액 <b>' + fmt(curVal) + '원</b><br>' +
+    '평단 대비 <span class="' + txtCls + '">' + sign + fmtDec(diffPct, 2) + '%</span>' +
+    ' &nbsp;|&nbsp; 손익분기 <b>' + fmt(avgPrice) + '원</b>';
+}
+
+document.getElementById('add-btn').addEventListener('click', function() {
+  entries.push({ price: '', qty: '' });
+  rebuildList();
+});
+
+document.getElementById('reset-btn').addEventListener('click', function() {
+  entries = [{ price: '', qty: '' }, { price: '', qty: '' }];
+  document.getElementById('current-price').value = '';
+  rebuildList();
+});
+
+document.getElementById('current-price').addEventListener('input', recalc);
+
+rebuildList();
+</script>
+</body>
+</html>
